@@ -4,11 +4,11 @@ FROM golang:1.13-buster AS build-base
 # get sources with dependencies
 RUN mkdir -p /home/cyrill/go/src/github.com/cyrill-k
 WORKDIR /home/cyrill/go/src/github.com/cyrill-k
-RUN git clone --single-branch --branch master --depth=1 git@github.com:cyrill-k/fpki && \
-        git clone --single-branch --branch master --depth=1 git@github.com:cyrill-k/mapserver-coredns-plugin && \
-        git clone --single-branch --branch fixtxt --depth=1 git@github.com:cyrill-k/dns && \
-        git clone --single-branch --branch max-rcv-size --depth=1 git@github.com:cyrill-k/trillian && \
-        git clone --single-branch --branch fpki-plugin --depth=1 git@github.com:cyrill-k/coredns
+RUN git clone --single-branch --branch master --depth=1 https://github.com/cyrill-k/fpki && \
+        git clone --single-branch --branch master --depth=1 https://github.com/cyrill-k/mapserver-coredns-plugin && \
+        git clone --single-branch --branch fixtxt --depth=1 https://github.com/cyrill-k/dns && \
+        git clone --single-branch --branch max-rcv-size --depth=1 https://github.com/cyrill-k/trillian && \
+        git clone --single-branch --branch fpki-plugin --depth=1 https://github.com/cyrill-k/coredns
 
 # build
 WORKDIR /home/cyrill/go/src/github.com/cyrill-k/fpki
