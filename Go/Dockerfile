@@ -1,26 +1,17 @@
 FROM golang:1.13-buster AS build-base
 # https://hub.docker.com/_/golang
 
-# create root ssh directory and authorize SSH Host
-RUN mkdir -p /root/.ssh && \
-    chmod 700 /root/.ssh && \
-    ssh-keyscan github.com > /root/.ssh/known_hosts 2>/dev/null
-# add read-only deploy keys
-COPY ./config/.ssh /root/.ssh
-# set correct permissions
-RUN chmod 600 /root/.ssh/id_*
-
 # get sources with dependencies
 RUN mkdir -p /home/cyrill/go/src/github.com/cyrill-k
 WORKDIR /home/cyrill/go/src/github.com/cyrill-k
-RUN git clone --single-branch --branch master --depth=1 git@trustflex:cyrill-k/trustflex && \
-        git clone --single-branch --branch master --depth=1 git@mapserver-coredns-plugin:cyrill-k/mapserver-coredns-plugin && \
+RUN git clone --single-branch --branch master --depth=1 git@github.com:cyrill-k/fpki && \
+        git clone --single-branch --branch master --depth=1 git@github.com:cyrill-k/mapserver-coredns-plugin && \
         git clone --single-branch --branch fixtxt --depth=1 git@github.com:cyrill-k/dns && \
         git clone --single-branch --branch max-rcv-size --depth=1 git@github.com:cyrill-k/trillian && \
-        git clone --single-branch --branch trustflex-plugin --depth=1 git@github.com:cyrill-k/coredns
+        git clone --single-branch --branch fpki-plugin --depth=1 git@github.com:cyrill-k/coredns
 
 # build
-WORKDIR /home/cyrill/go/src/github.com/cyrill-k/trustflex
+WORKDIR /home/cyrill/go/src/github.com/cyrill-k/fpki
 ENV GOPATH=/home/cyrill/go
 RUN make build_tmain
 RUN make pre_build_coredns
@@ -29,8 +20,8 @@ RUN make build_trillian
 
 FROM debian:buster AS build-final
 WORKDIR /root
-COPY --from=build-base /home/cyrill/go/src/github.com/cyrill-k/trustflex/makefile .
-COPY --from=build-base /home/cyrill/go/src/github.com/cyrill-k/trustflex/main .
+COPY --from=build-base /home/cyrill/go/src/github.com/cyrill-k/fpki/makefile .
+COPY --from=build-base /home/cyrill/go/src/github.com/cyrill-k/fpki/main .
 COPY --from=build-base /home/cyrill/go/src/github.com/cyrill-k/trillian/trillian_log_server .
 COPY --from=build-base /home/cyrill/go/src/github.com/cyrill-k/trillian/trillian_log_signer .
 COPY --from=build-base /home/cyrill/go/src/github.com/cyrill-k/trillian/trillian_map_server .

@@ -20,8 +20,8 @@ services:
       - "3306:3306"
     tty: true
   log-server:
-    # This service build trustflex-build:latest and adds a tag so subsequent services do not need to rebuild the image
-    image: trustflex-build:latest
+    # This service build fpki-build:latest and adds a tag so subsequent services do not need to rebuild the image
+    image: fpki-build:latest
     build:
       context: ./Go
     environment:
@@ -40,7 +40,7 @@ services:
     depends_on:
       - db
   sig-server:
-    image: trustflex-build:latest
+    image: fpki-build:latest
     environment:
       MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -57,7 +57,7 @@ services:
     depends_on:
       - log-server
   map-server:
-    image: trustflex-build:latest
+    image: fpki-build:latest
     environment:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
@@ -74,7 +74,7 @@ services:
     depends_on:
       - log-server
   dns-resolver:
-    image: trustflex-build:latest
+    image: fpki-build:latest
     environment:
       MAPSERVER_DOMAIN: ${MAPSERVER_DOMAIN}
       DNS_FORWARD_HOSTS: ${DNS_FORWARD_HOSTS}
@@ -96,7 +96,7 @@ services:
     depends_on:
       - map-server
   experiment:
-    image: trustflex-build:latest
+    image: fpki-build:latest
     environment:
       LOG_SERVER_HOST: ${LOG_SERVER_HOST}
       SIG_SERVER_HOST: ${SIG_SERVER_HOST}
