@@ -1,0 +1,116 @@
+version: '3'
+services:
+  db:
+    build:
+      context: ./db
+    command: --max_allowed_packet=1073741824 --max_connections=10000
+    ulimits:
+      nofile:
+        soft: "65536"
+        hard: "65536"
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    container_name: db
+    ports:
+      - "3306:3306"
+    tty: true
+  log-server:
+    # This service build trustflex-build:latest and adds a tag so subsequent services do not need to rebuild the image
+    image: trustflex-build:latest
+    build:
+      context: ./Go
+    environment:
+      MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_HOST: ${MYSQL_HOST}
+      LOG_SERVER_HOST: ${LOG_SERVER_HOST}
+      SIG_SERVER_HOST: ${SIG_SERVER_HOST}
+      MAP_SERVER_HOST: ${MAP_SERVER_HOST}
+      TRILLIAN_BIN_PATH: /root
+      TRUSTFLEX_BIN_PATH: /root
+      COREDNS_BIN_PATH: /root
+    command: [sh, -c, "./docker-scripts/wait-for-mysql.sh && ./docker-scripts/resetdb-if-necessary.sh && make tlserver"]
+    container_name: log-server
+    tty: true
+    depends_on:
+      - db
+  sig-server:
+    image: trustflex-build:latest
+    environment:
+      MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_HOST: ${MYSQL_HOST}
+      LOG_SERVER_HOST: ${LOG_SERVER_HOST}
+      SIG_SERVER_HOST: ${SIG_SERVER_HOST}
+      MAP_SERVER_HOST: ${MAP_SERVER_HOST}
+      TRILLIAN_BIN_PATH: /root
+      TRUSTFLEX_BIN_PATH: /root
+      COREDNS_BIN_PATH: /root
+    command: [sh, -c, "wait-for-it -s -t 60 log-server:8090 -- wait-for-it -s -t 60 log-server:8091 -- make tlsigner"]
+    container_name: sig-server
+    tty: true
+    depends_on:
+      - log-server
+  map-server:
+    image: trustflex-build:latest
+    environment:
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST: ${MYSQL_HOST}
+      LOG_SERVER_HOST: ${LOG_SERVER_HOST}
+      SIG_SERVER_HOST: ${SIG_SERVER_HOST}
+      MAP_SERVER_HOST: ${MAP_SERVER_HOST}
+      TRILLIAN_BIN_PATH: /root
+      TRUSTFLEX_BIN_PATH: /root
+      COREDNS_BIN_PATH: /root
+    command: [sh, -c, "wait-for-it -s -t 60 log-server:8090 -- wait-for-it -s -t 60 log-server:8091 -- make tmserver"]
+    container_name: map-server
+    tty: true
+    depends_on:
+      - log-server
+  dns-resolver:
+    image: trustflex-build:latest
+    environment:
+      MAPSERVER_DOMAIN: ${MAPSERVER_DOMAIN}
+      DNS_FORWARD_HOSTS: ${DNS_FORWARD_HOSTS}
+      LOG_SERVER_HOST: ${LOG_SERVER_HOST}
+      SIG_SERVER_HOST: ${SIG_SERVER_HOST}
+      MAP_SERVER_HOST: ${MAP_SERVER_HOST}
+      DNS_PORT_INTERNAL: 12345
+      TRILLIAN_BIN_PATH: /root
+      TRUSTFLEX_BIN_PATH: /root
+      COREDNS_BIN_PATH: /root
+    volumes:
+      - ./config:/mnt/config
+    command: [sh, -c, "wait-for-it -s -t 60 map-server:8094 -- wait-for-it -s -t 60 map-server:8095 -- make createmap_if_necessary && docker-scripts/generate-corefile.sh && make map_dns_server"]
+    ports:
+      - "${LOCAL_OR_EXTERNAL_IP}:${DNS_PORT:-53}:12345/tcp"
+      - "${LOCAL_OR_EXTERNAL_IP}:${DNS_PORT:-53}:12345/udp"
+    container_name: dns-resolver
+    tty: true
+    depends_on:
+      - map-server
+  experiment:
+    image: trustflex-build:latest
+    environment:
+      LOG_SERVER_HOST: ${LOG_SERVER_HOST}
+      SIG_SERVER_HOST: ${SIG_SERVER_HOST}
+      MAP_SERVER_HOST: ${MAP_SERVER_HOST}
+      MYSQL_HOST: ${MYSQL_HOST}
+      TRILLIAN_BIN_PATH: /root
+      TRUSTFLEX_BIN_PATH: /root
+      COREDNS_BIN_PATH: /root
+      BASE_CMD: ./main
+    volumes:
+      - ./config:/mnt/config
+      - ./output:/mnt/output
+    command: [sh, -c, "tail -f /dev/null"]
+    container_name: experiment
+    tty: true
+    depends_on:
+      - dns-resolver
